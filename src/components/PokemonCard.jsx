@@ -1,4 +1,4 @@
-export default function PokemonCard({ pokemon }) {
+export default function PokemonCard({ pokemon, onSelect }) {
   const { id, name, types, height, weight, sprites } = pokemon;
 
   const formattedId = id.toString().padStart(3, "0");
@@ -27,7 +27,8 @@ export default function PokemonCard({ pokemon }) {
 
   return (
     <div
-      className={`rounded-xl p-4 shadow-md text-center relative overflow-hidden ${typeColor[mainType] || "bg-gray-100"}`}
+      onClick={() => onSelect && onSelect(pokemon)}
+      className={`rounded-xl p-4 shadow-md text-center relative overflow-hidden cursor-pointer hover:scale-105 transition-transform ${typeColor[mainType] || "bg-gray-100"}`}
     >
       <p className="absolute top-2 left-1/2 -translate-x-1/2 text-6xl font-extrabold text-gray-200 select-none">
         #{formattedId}
