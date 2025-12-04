@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     tools {
-        nodejs 'node18'   // <-- Necesitas configurar Node en Jenkins (Global Tools)
+        nodejs 'node18'   // Usa la instalación NodeJS configurada en Jenkins
     }
 
     environment {
@@ -23,15 +23,10 @@ pipeline {
             }
         }
 
-        stage('Install & Build (Node inside Docker)') {
+        stage('Install & Build') {
             steps {
-                sh """
-                    docker run --rm \
-                        -v \$(pwd):/app \
-                        -w /app \
-                        node:18-alpine \
-                        sh -c "npm install && npm run build"
-                """
+                sh "npm install"
+                sh "npm run build"
             }
         }
 
@@ -48,11 +43,11 @@ pipeline {
         stage('Trigger Render Deploy') {
             steps {
                 sh """
-                    curl -X POST \\
-                      -H "Authorization: Bearer ${RENDER_API_KEY}" \\
-                      -H "Accept: application/json" \\
-                      -H "Content-Type: application/json" \\
-                      -d '{ "clearCache": false }' \\
+                    curl -X POST \
+                      -H "Authorization: Bearer ${RENDER_API_KEY}" \
+                      -H "Accept: application/json" \
+                      -H "Content-Type: application/json" \
+                      -d '{ "clearCache": false }' \
                       https://api.render.com/v1/services/${RENDER_SERVICE_ID}/deploys
                 """
             }
