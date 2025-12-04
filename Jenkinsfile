@@ -1,16 +1,23 @@
 pipeline {
-    agent any
+
+    agent {
+        docker {
+            image 'node:18-alpine'
+            args '-u root:root -v /var/run/docker.sock:/var/run/docker.sock'
+        }
+    }
 
     environment {
-        // Variables de tu build
+        // Variables de tu aplicación
         VITE_POKEAPI_URL = "https://pokeapi.co/api/v2"
         REGISTRY = "docker.io/mikemazun"
         IMAGE = "pokeapi-frontend"
+        DOCKER_PASSWORD = credentials('dockerhub-credentials')
 
-        // Credencial que guardaste en Jenkins (Render API Key)
+        // Credenciales
         RENDER_API_KEY   = credentials('render-api-key')
 
-        // Reemplaza esto con TU service ID desde Render
+        // Service ID de Render
         RENDER_SERVICE_ID = "srv-d4oi4gre5dus73c94670"
     }
 
@@ -45,12 +52,12 @@ pipeline {
         stage('Push Docker image') {
             steps {
                 sh """
+                    docker login -u mikemazun -p '${DOCKER_PASSWORD}'
                     docker push ${REGISTRY}/${IMAGE}:${BUILD_NUMBER}
                 """
             }
         }
 
-        // 🔥🔥🔥 ESTA ES LA PARTE NUEVA PARA RENDER 🔥🔥🔥
         stage('Trigger Render Deploy') {
             steps {
                 sh """
@@ -63,6 +70,5 @@ pipeline {
                 """
             }
         }
-        // 🔥🔥🔥 FIN DE LA PARTE NUEVA 🔥🔥🔥
     }
 }
