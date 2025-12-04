@@ -13,33 +13,21 @@ pipeline {
 
     stages {
 
-        stage('Install NodeJS') {
-            steps {
-                sh """
-                    echo "Instalando NodeJS..."
-                    curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
-                    apt-get install -y nodejs
-                    node -v
-                    npm -v
-                """
-            }
-        }
-
         stage('Checkout') {
             steps {
                 checkout scm
             }
         }
 
-        stage('Install dependencies') {
+        stage('Install & Build (Node inside Docker)') {
             steps {
-                sh 'npm install'
-            }
-        }
-
-        stage('Build Vite') {
-            steps {
-                sh 'npm run build'
+                sh """
+                    docker run --rm \
+                        -v \$(pwd):/app \
+                        -w /app \
+                        node:18-alpine \
+                        sh -c "npm install && npm run build"
+                """
             }
         }
 
