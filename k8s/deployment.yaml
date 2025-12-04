@@ -14,6 +14,6 @@ spec:
     spec:
       containers:
         - name: pokeapi-frontend
-          image: tu-registry.com/pokeapi-frontend:latest
+          image: docker.io/mikemazun/pokeapi-frontend:latest
           ports:
             - containerPort: 80
