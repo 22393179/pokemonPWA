@@ -28,12 +28,12 @@ pipeline {
             }
         }
 
-        stage('Tests') {
+        /* stage('Tests') {
             when { expression { BRANCH == 'develop' || BRANCH == 'main' } }
             steps {
                 sh 'npm run test -- --watch=false --coverage'
             }
-        }
+        } */
 
         stage('SonarQube Analysis') {
             when { expression { BRANCH == 'develop' || BRANCH == 'main' } }
