@@ -2,10 +2,12 @@ FROM jenkins/jenkins:lts
 
 USER root
 
+# Instalar Node.js 20 LTS
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
     && apt-get install -y nodejs \
     && npm install -g npm@latest
 
-# No necesitamos instalar sonar-scanner, lo corremos vía Docker
+# Instalar Docker CLI (para sonar-scanner via Docker)
+RUN apt-get update && apt-get install -y docker.io
 
 USER jenkins
