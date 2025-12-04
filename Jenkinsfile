@@ -7,7 +7,7 @@ pipeline {
         SONAR_TOKEN = credentials('sonarqube-token')
         VERCEL_TOKEN = credentials('vercel-token')
         ORG_ID = credentials('org-id')
-        PROJECT_ID = credentials('project-id')   
+        PROJECT_ID = credentials('project-id')
     }
 
     stages {
@@ -38,13 +38,18 @@ pipeline {
         stage('SonarQube Analysis') {
             when { expression { BRANCH == 'develop' || BRANCH == 'main' } }
             steps {
-                withSonarQubeEnv('SonarServer') {
+                script {
                     sh """
-                        npx sonar-scanner \
-                        -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
-                        -Dsonar.sources=src \
-                        -Dsonar.host.url=${SONAR_HOST_URL} \
-                        -Dsonar.login=${SONAR_TOKEN}
+                        docker run --rm \
+                        -e SONAR_HOST_URL=${SONAR_HOST_URL} \
+                        -e SONAR_LOGIN=${SONAR_TOKEN} \
+                        -v \$(pwd):/usr/src \
+                        sonarsource/sonar-scanner-cli \
+                        sonar-scanner \
+                            -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
+                            -Dsonar.sources=./src \
+                            -Dsonar.host.url=${SONAR_HOST_URL} \
+                            -Dsonar.login=${SONAR_TOKEN}
                     """
                 }
             }
@@ -71,7 +76,6 @@ pipeline {
                     vercel deploy --prod \
                         --token=${VERCEL_TOKEN} \
                         --yes \
-                        --env VITE_POKE_API_KEY=\${VITE_POKE_API_KEY} \
                         --org ${ORG_ID} \
                         --project ${PROJECT_ID}
                 """
