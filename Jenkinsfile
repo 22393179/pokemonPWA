@@ -2,43 +2,50 @@ pipeline {
     agent any
 
     environment {
-        REGISTRY = "mikemazun/poke-landing"
-        IMAGE_TAG = "v${env.BUILD_NUMBER}"
-        DOCKERHUB = credentials('dockerhub-cred')   // credenciales en Jenkins
-        KUBECONFIG = credentials('kubeconfig-cred') // kubeconfig guardado en Jenkins
+        // Variable de entorno para Vite
+        VITE_POKEAPI_URL = "https://pokeapi.co/api/v2"  
+        // Cambia por tus credenciales o almacénalas en Jenkins Credentials
+        REGISTRY = "docker.io/mikemazun"
+        IMAGE = "pokeapi-frontend"
     }
 
     stages {
+
         stage('Checkout') {
             steps {
-                git 'https://github.com/TU-REPO/poke-landing.git'
+                checkout scm
             }
         }
 
-        stage('Build React') {
+        stage('Install dependencies') {
             steps {
                 sh 'npm install'
+            }
+        }
+
+        stage('Build Vite') {
+            steps {
                 sh 'npm run build'
             }
         }
 
-        stage('Build Docker Image') {
+        stage('Build Docker image') {
             steps {
-                sh "docker build -t $REGISTRY:$IMAGE_TAG ."
-            }
-        }
-
-        stage('Push Docker Image') {
-            steps {
-                sh "echo $DOCKERHUB_PSW | docker login -u $DOCKERHUB_USR --password-stdin"
-                sh "docker push $REGISTRY:$IMAGE_TAG"
+                sh """
+                    docker build -t ${REGISTRY}/${IMAGE}:${BUILD_NUMBER} .
+                    docker push ${REGISTRY}/${IMAGE}:${BUILD_NUMBER}
+                """
             }
         }
 
         stage('Deploy to Kubernetes') {
             steps {
-                sh "kubectl set image deployment/poke-landing poke-landing=$REGISTRY:$IMAGE_TAG"
-                sh "kubectl rollout status deployment/poke-landing"
+                sh """
+                    kubectl set image deployment/pokeapi-frontend \
+                    pokeapi-frontend=${REGISTRY}/${IMAGE}:${BUILD_NUMBER}
+
+                    kubectl rollout restart deployment/pokeapi-frontend
+                """
             }
         }
     }

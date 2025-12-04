@@ -1,19 +1,19 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: poke-landing
+  name: pokeapi-frontend
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
-      app: poke-landing
+      app: pokeapi-frontend
   template:
     metadata:
       labels:
-        app: poke-landing
+        app: pokeapi-frontend
     spec:
       containers:
-        - name: poke-landing
-          image: mikemazun/poke-landing:v1
+        - name: pokeapi-frontend
+          image: tu-registry.com/pokeapi-frontend:latest
           ports:
             - containerPort: 80

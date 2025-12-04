@@ -1,11 +1,11 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: poke-landing-service
+  name: pokeapi-frontend-service
 spec:
-  type: ClusterIP
+  type: LoadBalancer
   selector:
-    app: poke-landing
+    app: pokeapi-frontend
   ports:
     - port: 80
       targetPort: 80
