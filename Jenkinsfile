@@ -1,43 +1,79 @@
 pipeline {
     agent any
 
-    tools {
-        nodejs 'node18'
-    }
-
     environment {
-        VITE_POKEAPI_URL   = "https://pokeapi.co/api/v2"
-        REGISTRY           = "docker.io/mikemazun"
-        IMAGE              = "pokeapi-frontend"
-
-        RENDER_API_KEY     = credentials('render-api-key')
-        RENDER_SERVICE_ID  = "srv-d4oi4gre5dus73c94670"
+        SONAR_HOST_URL = "http://sonarqube:9000"
+        SONAR_PROJECT_KEY = "pokeapi-react"
+        SONAR_TOKEN = credentials('sonarqube-token')
+        VERCEL_TOKEN = credentials('vercel-token')
+        ORG_ID = credentials('org-id')
+        PROJECT_ID = credentials('project-id')   
     }
 
     stages {
 
-        stage('Checkout') {
+        stage('Check Branch') {
             steps {
-                checkout scm
+                script {
+                    BRANCH = env.GIT_BRANCH ?: env.BRANCH_NAME
+                    echo "Branch detectada: ${BRANCH}"
+                }
             }
         }
 
-        stage('Install & Build') {
+        stage('Instalar dependencias') {
+            when { expression { BRANCH == 'develop' || BRANCH == 'main' } }
             steps {
-                sh "npm install"
-                sh "npm run build"
+                sh 'npm install'
             }
         }
 
-        stage('Trigger Render Deploy') {
+        stage('Tests') {
+            when { expression { BRANCH == 'develop' || BRANCH == 'main' } }
+            steps {
+                sh 'npm run test -- --watch=false --coverage'
+            }
+        }
+
+        stage('SonarQube Analysis') {
+            when { expression { BRANCH == 'develop' || BRANCH == 'main' } }
+            steps {
+                withSonarQubeEnv('SonarServer') {
+                    sh """
+                        npx sonar-scanner \
+                        -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
+                        -Dsonar.sources=src \
+                        -Dsonar.host.url=${SONAR_HOST_URL} \
+                        -Dsonar.login=${SONAR_TOKEN}
+                    """
+                }
+            }
+        }
+
+        stage("Esperar Quality Gate") {
+            when { expression { BRANCH == 'develop' || BRANCH == 'main' } }
+            steps {
+                timeout(time: 3, unit: 'MINUTES') {
+                    script {
+                        def qg = waitForQualityGate()
+                        if (qg.status != 'OK') {
+                            error "Quality Gate falló: ${qg.status}"
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Deploy a Producción (solo main)') {
+            when { expression { BRANCH == 'main' } }
             steps {
                 sh """
-                    curl -X POST \
-                        -H "Authorization: Bearer ${RENDER_API_KEY}" \
-                        -H "Accept: application/json" \
-                        -H "Content-Type: application/json" \
-                        -d '{ "clearCache": false }' \
-                        https://api.render.com/v1/services/${RENDER_SERVICE_ID}/deploys
+                    vercel deploy --prod \
+                        --token=${VERCEL_TOKEN} \
+                        --yes \
+                        --env VITE_POKE_API_KEY=\${VITE_POKE_API_KEY} \
+                        --org ${ORG_ID} \
+                        --project ${PROJECT_ID}
                 """
             }
         }
