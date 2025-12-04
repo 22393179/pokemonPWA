@@ -1,27 +1,29 @@
 pipeline {
-
-    agent {
-        docker {
-            image 'node:18-alpine'
-            args '-u root:root -v /var/run/docker.sock:/var/run/docker.sock'
-        }
-    }
+    agent any
 
     environment {
-        // Variables de tu aplicación
         VITE_POKEAPI_URL = "https://pokeapi.co/api/v2"
         REGISTRY = "docker.io/mikemazun"
         IMAGE = "pokeapi-frontend"
+
         DOCKER_PASSWORD = credentials('dockerhub-credentials')
-
-        // Credenciales
-        RENDER_API_KEY   = credentials('render-api-key')
-
-        // Service ID de Render
+        RENDER_API_KEY  = credentials('render-api-key')
         RENDER_SERVICE_ID = "srv-d4oi4gre5dus73c94670"
     }
 
     stages {
+
+        stage('Install NodeJS') {
+            steps {
+                sh """
+                    echo "Instalando NodeJS..."
+                    curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
+                    apt-get install -y nodejs
+                    node -v
+                    npm -v
+                """
+            }
+        }
 
         stage('Checkout') {
             steps {
@@ -41,18 +43,11 @@ pipeline {
             }
         }
 
-        stage('Build Docker image') {
+        stage('Docker Build') {
             steps {
                 sh """
+                    echo $DOCKER_PASSWORD | docker login -u mikemazun --password-stdin
                     docker build -t ${REGISTRY}/${IMAGE}:${BUILD_NUMBER} .
-                """
-            }
-        }
-
-        stage('Push Docker image') {
-            steps {
-                sh """
-                    docker login -u mikemazun -p '${DOCKER_PASSWORD}'
                     docker push ${REGISTRY}/${IMAGE}:${BUILD_NUMBER}
                 """
             }
