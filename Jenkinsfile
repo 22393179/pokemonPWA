@@ -38,22 +38,18 @@ pipeline {
         stage('SonarQube Analysis') {
             when { expression { BRANCH == 'develop' || BRANCH == 'main' } }
             steps {
-                script {
+                withSonarQubeEnv('SonarServer') {
                     sh """
-                        docker run --rm \
-                        -e SONAR_HOST_URL=${SONAR_HOST_URL} \
-                        -e SONAR_LOGIN=${SONAR_TOKEN} \
-                        -v \$(pwd):/usr/src \
-                        sonarsource/sonar-scanner-cli \
                         sonar-scanner \
-                            -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
-                            -Dsonar.sources=./src \
-                            -Dsonar.host.url=${SONAR_HOST_URL} \
-                            -Dsonar.login=${SONAR_TOKEN}
+                        -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
+                        -Dsonar.sources=src \
+                        -Dsonar.host.url=${SONAR_HOST_URL} \
+                        -Dsonar.login=${SONAR_TOKEN}
                     """
                 }
             }
         }
+
 
         stage("Esperar Quality Gate") {
             when { expression { BRANCH == 'develop' || BRANCH == 'main' } }
