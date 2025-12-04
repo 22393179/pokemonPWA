@@ -1,6 +1,10 @@
 pipeline {
     agent any
 
+    tools {
+        nodejs 'node18'   // <-- Necesitas configurar Node en Jenkins (Global Tools)
+    }
+
     environment {
         VITE_POKEAPI_URL = "https://pokeapi.co/api/v2"
         REGISTRY = "docker.io/mikemazun"
