@@ -34,17 +34,11 @@ pipeline {
             steps {
                 withSonarQubeEnv('SonarServer') {
                     sh """
-                        docker run --rm \
-                          --network pokepwa_cicd \
-                          -e SONAR_HOST_URL=${SONAR_HOST_URL} \
-                          -e SONAR_LOGIN=${SONAR_TOKEN} \
-                          -v ${WORKSPACE}:/usr/src \
-                          sonarsource/sonar-scanner-cli \
-                          sonar-scanner \
-                            -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
-                            -Dsonar.sources=. \
-                            -Dsonar.host.url=${SONAR_HOST_URL} \
-                            -Dsonar.login=${SONAR_TOKEN}
+                        sonar-scanner \
+                          -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
+                          -Dsonar.sources=. \
+                          -Dsonar.host.url=${SONAR_HOST_URL} \
+                          -Dsonar.login=${SONAR_TOKEN}
                     """
                 }
             }
@@ -54,12 +48,7 @@ pipeline {
             when { expression { env.BRANCH == 'develop' || env.BRANCH == 'main' } }
             steps {
                 timeout(time: 3, unit: 'MINUTES') {
-                    script {
-                        def qg = waitForQualityGate()
-                        if (qg.status != 'OK') {
-                            error "Quality Gate falló: ${qg.status}"
-                        }
-                    }
+                    waitForQualityGate abortPipeline: true
                 }
             }
         }
