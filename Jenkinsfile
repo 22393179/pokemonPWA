@@ -4,6 +4,7 @@ pipeline {
     environment {
         SONAR_HOST_URL = "http://sonarqube:9000"
         SONAR_PROJECT_KEY = "pokeapi-react"
+        SONAR_TOKEN = credentials('sonarqube-token')
 
         VERCEL_TOKEN = credentials('vercel-token')
         ORG_ID = credentials('org-id')
@@ -15,13 +16,15 @@ pipeline {
         stage('Check Branch') {
             steps {
                 script {
-                    env.BRANCH = sh(returnStdout: true, script: "git rev-parse --abbrev-ref HEAD").trim()
-                    echo "Branch detectada: ${env.BRANCH}"
+                    def branch = env.BRANCH_NAME   // ← ESTA ES LA CORRECCIÓN
+                    echo "Branch detectada: ${branch}"
+                    env.BRANCH = branch
                 }
             }
         }
 
         stage('Instalar dependencias') {
+            when { expression { env.BRANCH == 'develop' || env.BRANCH == 'main' } }
             steps {
                 sh 'npm install'
             }
@@ -30,34 +33,34 @@ pipeline {
         stage('SonarQube Analysis') {
             when { expression { env.BRANCH == 'develop' || env.BRANCH == 'main' } }
             steps {
-                withCredentials([
-                    string(credentialsId: 'SONAR_TOKEN', variable: 'SONAR_TOKEN')
-                ]) {
-                    withSonarQubeEnv('SonarServer') {
-                        sh """
-                            docker run --rm \
-                              --network pokepwa_cicd \
-                              -e SONAR_HOST_URL=${SONAR_HOST_URL} \
-                              -e SONAR_LOGIN=${SONAR_TOKEN} \
-                              -v ${WORKSPACE}:/usr/src \
-                              sonarsource/sonar-scanner-cli \
-                              sonar-scanner \
-                                -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
-                                -Dsonar.sources=. \
-                                -Dsonar.host.url=${SONAR_HOST_URL} \
-                                -Dsonar.login=${SONAR_TOKEN} \
-                                -Dsonar.working.directory=/opt/sonar
-                        """
-                    }
+                withSonarQubeEnv('SonarServer') {
+                    sh """
+                        docker run --rm \
+                          --network pokepwa_cicd \
+                          -e SONAR_HOST_URL=${SONAR_HOST_URL} \
+                          -e SONAR_LOGIN=${SONAR_TOKEN} \
+                          -v ${WORKSPACE}:/usr/src \
+                          sonarsource/sonar-scanner-cli \
+                          sonar-scanner \
+                            -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
+                            -Dsonar.sources=. \
+                            -Dsonar.host.url=${SONAR_HOST_URL} \
+                            -Dsonar.login=${SONAR_TOKEN}
+                    """
                 }
             }
         }
 
-        stage('Esperar Quality Gate') {
+        stage("Esperar Quality Gate") {
             when { expression { env.BRANCH == 'develop' || env.BRANCH == 'main' } }
             steps {
                 timeout(time: 3, unit: 'MINUTES') {
-                    waitForQualityGate abortPipeline: true
+                    script {
+                        def qg = waitForQualityGate()
+                        if (qg.status != 'OK') {
+                            error "Quality Gate falló: ${qg.status}"
+                        }
+                    }
                 }
             }
         }
@@ -74,6 +77,5 @@ pipeline {
                 """
             }
         }
-
     }
 }
