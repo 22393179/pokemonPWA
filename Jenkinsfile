@@ -9,6 +9,7 @@ pipeline {
     }
 
     stages {
+
         stage('Checkout') {
             steps {
                 checkout scm
@@ -70,6 +71,7 @@ pipeline {
                 branch 'main'
             }
             steps {
+                sh 'npm install -g vercel' 
                 sh "vercel --token=${VERCEL_TOKEN} --prod --confirm"
             }
         }
