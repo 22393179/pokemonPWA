@@ -2,6 +2,7 @@ pipeline {
     agent any
 
     environment {
+        SONAR_HOST_URL = "http://sonarqube:9000"
         SONAR_PROJECT_KEY = "pokeapi-react"
         SONAR_TOKEN = credentials('sonarqube-token')
         VERCEL_TOKEN = credentials('vercel-token')
@@ -33,14 +34,14 @@ pipeline {
                 withSonarQubeEnv('SonarServer') {
                     sh """
                         docker run --rm \
-                        -e SONAR_HOST_URL=\$SONAR_HOST_URL \
+                        -e SONAR_HOST_URL=${SONAR_HOST_URL} \
                         -e SONAR_LOGIN=${SONAR_TOKEN} \
                         -v ${WORKSPACE}:/usr/src \
                         sonarsource/sonar-scanner-cli \
                         sonar-scanner \
                           -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
                           -Dsonar.sources=src \
-                          -Dsonar.host.url=\$SONAR_HOST_URL \
+                          -Dsonar.host.url=${SONAR_HOST_URL} \
                           -Dsonar.login=${SONAR_TOKEN}
                     """
                 }
