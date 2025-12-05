@@ -29,6 +29,13 @@ pipeline {
             }
         }
 
+        stage('Preparar permisos workspace') {
+            steps {
+                sh "mkdir -p ${WORKSPACE}/.scannerwork"
+                sh "chmod -R 777 ${WORKSPACE}/.scannerwork"
+            }
+        }
+
         stage('SonarQube Analysis') {
             when { expression { env.BRANCH == 'develop' || env.BRANCH == 'main' } }
             steps {
@@ -48,10 +55,7 @@ pipeline {
                             -Dsonar.working.directory=/usr/src/.scannerwork
                     """
 
-                    // Copiar el archivo necesario para waitForQualityGate
-                    sh """
-                        cp .scannerwork/report-task.txt report-task.txt || true
-                    """
+                    sh "cp .scannerwork/report-task.txt report-task.txt || true"
                 }
             }
         }
