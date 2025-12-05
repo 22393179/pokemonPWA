@@ -15,41 +15,42 @@ pipeline {
         stage('Check Branch') {
             steps {
                 script {
-                    BRANCH = env.GIT_BRANCH ?: env.BRANCH_NAME
-                    echo "Branch detectada: ${BRANCH}"
+                    def branch = env.GIT_BRANCH ?: env.BRANCH_NAME
+                    echo "Branch detectada: ${branch}"
+                    env.BRANCH = branch
                 }
             }
         }
 
         stage('Instalar dependencias') {
-            when { expression { BRANCH == 'develop' || BRANCH == 'main' } }
+            when { expression { env.BRANCH == 'develop' || env.BRANCH == 'main' } }
             steps {
                 sh 'npm install'
             }
         }
 
         stage('SonarQube Analysis') {
-            when { expression { BRANCH == 'develop' || BRANCH == 'main' } }
+            when { expression { env.BRANCH == 'develop' || env.BRANCH == 'main' } }
             steps {
                 withSonarQubeEnv('SonarServer') {
                     sh """
                         docker run --rm \
-                        -e SONAR_HOST_URL=${SONAR_HOST_URL} \
-                        -e SONAR_LOGIN=${SONAR_TOKEN} \
-                        -v ${WORKSPACE}:/usr/src \
-                        sonarsource/sonar-scanner-cli \
-                        sonar-scanner \
-                          -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
-                          -Dsonar.sources=src \
-                          -Dsonar.host.url=${SONAR_HOST_URL} \
-                          -Dsonar.login=${SONAR_TOKEN}
+                          -e SONAR_HOST_URL=${SONAR_HOST_URL} \
+                          -e SONAR_LOGIN=${SONAR_TOKEN} \
+                          -v ${WORKSPACE}:/usr/src \
+                          sonarsource/sonar-scanner-cli \
+                          sonar-scanner \
+                            -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
+                            -Dsonar.sources=src \
+                            -Dsonar.host.url=${SONAR_HOST_URL} \
+                            -Dsonar.login=${SONAR_TOKEN}
                     """
                 }
             }
         }
 
         stage("Esperar Quality Gate") {
-            when { expression { BRANCH == 'develop' || BRANCH == 'main' } }
+            when { expression { env.BRANCH == 'develop' || env.BRANCH == 'main' } }
             steps {
                 timeout(time: 3, unit: 'MINUTES') {
                     script {
@@ -63,7 +64,7 @@ pipeline {
         }
 
         stage('Deploy a Producción (solo main)') {
-            when { expression { BRANCH == 'main' } }
+            when { expression { env.BRANCH == 'main' } }
             steps {
                 sh """
                     vercel deploy --prod \
