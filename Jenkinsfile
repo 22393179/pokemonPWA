@@ -10,7 +10,7 @@ pipeline {
         stage('Check Branch') {
             steps {
                 script {
-                    BRANCH = sh(script: "git rev-parse --abbrev-ref HEAD", returnStdout: true).trim()
+                    BRANCH = env.BRANCH_NAME
                     echo "Branch detectada: ${BRANCH}"
                 }
             }
