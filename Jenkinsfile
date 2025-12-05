@@ -16,7 +16,12 @@ pipeline {
         stage('Check Branch') {
             steps {
                 script {
-                    def branch = sh(script: "git rev-parse --abbrev-ref HEAD", returnStdout: true).trim()
+                    // Detectar rama real
+                    def branch = env.GIT_BRANCH?.replace('origin/', '') ?: sh(
+                        script: "git rev-parse --abbrev-ref HEAD",
+                        returnStdout: true
+                    ).trim()
+
                     echo "Branch detectada: ${branch}"
                     env.BRANCH = branch
                 }
@@ -26,7 +31,7 @@ pipeline {
         stage('Instalar dependencias') {
             when { expression { env.BRANCH == 'develop' || env.BRANCH == 'main' } }
             steps {
-                sh "npm install"
+                sh 'npm install'
             }
         }
 
@@ -35,11 +40,16 @@ pipeline {
             steps {
                 withSonarQubeEnv('SonarServer') {
                     sh """
-                        sonar-scanner \
-                          -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
-                          -Dsonar.sources=. \
-                          -Dsonar.host.url=${SONAR_HOST_URL} \
-                          -Dsonar.login=${SONAR_TOKEN}
+                        docker run --rm \
+                          --network pokepwa_cicd \
+                          -e SONAR_HOST_URL=${SONAR_HOST_URL} \
+                          -e SONAR_LOGIN=${SONAR_TOKEN} \
+                          -v ${WORKSPACE}:/usr/src \
+                          sonarsource/sonar-scanner-cli sonar-scanner \
+                            -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
+                            -Dsonar.sources=. \
+                            -Dsonar.host.url=${SONAR_HOST_URL} \
+                            -Dsonar.login=${SONAR_TOKEN}
                     """
                 }
             }
