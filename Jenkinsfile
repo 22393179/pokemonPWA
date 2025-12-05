@@ -2,7 +2,14 @@ pipeline {
     agent any
 
     environment {
-        SONAR_HOST_URL = 'http://sonarqube:9000'
+        SONAR_HOST_URL = "http://sonarqube:9000"
+        SONAR_PROJECT_KEY = "pokeapi-react"
+
+        // IDs correctos según tu screenshot
+        SONAR_TOKEN = credentials('sonarqube-token')
+        VERCEL_TOKEN = credentials('vercel-token')
+        ORG_ID = credentials('org-id')
+        PROJECT_ID = credentials('project-id')
     }
 
     stages {
@@ -10,70 +17,65 @@ pipeline {
         stage('Check Branch') {
             steps {
                 script {
-                    BRANCH = env.BRANCH_NAME
-                    echo "Branch detectada: ${BRANCH}"
+                    def branch = sh(script: "git rev-parse --abbrev-ref HEAD", returnStdout: true).trim()
+                    echo "Branch detectada: ${branch}"
+                    env.BRANCH = branch
                 }
             }
         }
 
         stage('Instalar dependencias') {
-            when { expression { BRANCH == "develop" } }
+            when { expression { env.BRANCH == 'develop' || env.BRANCH == 'main' } }
             steps {
                 sh 'npm install'
             }
         }
 
         stage('SonarQube Analysis') {
-            when { expression { BRANCH == "develop" } }
+            when { expression { env.BRANCH == 'develop' || env.BRANCH == 'main' } }
             steps {
-                withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
+                withSonarQubeEnv('SonarServer') {
                     sh """
                         docker run --rm \
                           --network pokepwa_cicd \
-                          -e SONAR_HOST_URL=$SONAR_HOST_URL \
-                          -e SONAR_LOGIN=$SONAR_TOKEN \
-                          -v $WORKSPACE:/usr/src \
-                          sonarsource/sonar-scanner-cli sonar-scanner \
-                            -Dsonar.projectKey=pokeapi-react \
+                          -e SONAR_HOST_URL=${SONAR_HOST_URL} \
+                          -e SONAR_LOGIN=${SONAR_TOKEN} \
+                          -v ${WORKSPACE}:/usr/src \
+                          sonarsource/sonar-scanner-cli \
+                          sonar-scanner \
+                            -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
                             -Dsonar.sources=. \
-                            -Dsonar.host.url=$SONAR_HOST_URL \
-                            -Dsonar.login=$SONAR_TOKEN \
-                            -Dsonar.projectBaseDir=/usr/src \
-                            -Dsonar.working.directory=/usr/src/.scannerwork \
-                            -Dsonar.scanner.metadataFilePath=/usr/src/report-task.txt
+                            -Dsonar.host.url=${SONAR_HOST_URL} \
+                            -Dsonar.login=${SONAR_TOKEN}
                     """
                 }
             }
         }
 
         stage('Esperar Quality Gate') {
-            when { expression { BRANCH == "develop" } }
+            when { expression { env.BRANCH == 'develop' || env.BRANCH == 'main' } }
             steps {
                 timeout(time: 3, unit: 'MINUTES') {
                     script {
-                        waitForQualityGate abortPipeline: true
+                        def qg = waitForQualityGate()
+                        if (qg.status != 'OK') {
+                            error "Quality Gate falló: ${qg.status}"
+                        }
                     }
                 }
             }
         }
 
         stage('Deploy a Producción (solo main)') {
-            when { expression { BRANCH == "main" } }
+            when { expression { env.BRANCH == 'main' } }
             steps {
-                withCredentials([
-                    string(credentialsId: 'vercel-token', variable: 'VERCEL_TOKEN'),
-                    string(credentialsId: 'org-id', variable: 'ORG_ID'),
-                    string(credentialsId: 'project-id', variable: 'PROJECT_ID')
-                ]) {
-                    sh """
-                        npx vercel deploy --prod \
-                          --token \$VERCEL_TOKEN \
-                          --yes \
-                          --confirm \
-                          --scope \$ORG_ID \
-                          --project \$PROJECT_ID
-                    """
-                }
+                sh """
+                    vercel deploy --prod \
+                        --token=${VERCEL_TOKEN} \
+                        --yes \
+                        --org ${ORG_ID} \
+                        --project ${PROJECT_ID}
+                """
             }
         }
     }
