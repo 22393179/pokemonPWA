@@ -35,6 +35,7 @@ pipeline {
                 withSonarQubeEnv('SonarServer') {
                     sh """
                         docker run --rm \
+                          --network pokepwa_cicd \
                           -e SONAR_HOST_URL=${SONAR_HOST_URL} \
                           -e SONAR_LOGIN=${SONAR_TOKEN} \
                           -v ${WORKSPACE}:/usr/src \
